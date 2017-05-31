@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans
+	xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:p="http://www.springframework.org/schema/p"
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans 
+	http://www.springframework.org/schema/beans/spring-beans-4.1.xsd
+	http://www.springframework.org/schema/tx 
+	http://www.springframework.org/schema/tx/spring-tx.xsd
+	http://www.springframework.org/schema/aop 
+	http://www.springframework.org/schema/aop/spring-aop-4.0.xsd">
+
+	<bean id="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource"
+		destroy-method="close"
+		p:driverClass="com.mysql.jdbc.Driver"
+		p:jdbcUrl="jdbc:mysql://localhost:3306/nba_players?useSSL=false"
+		p:user="root"
+		p:password="admin"
+		p:maxPoolSize="200"
+		p:minPoolSize="2"
+		p:initialPoolSize="2"
+		p:maxIdleTime="20"/>
+
+	<bean id="sessionFactory"
+		class="org.springframework.orm.hibernate4.LocalSessionFactoryBean"
+		p:dataSource-ref="dataSource">
+		<property name="annotatedClasses">
+			<list>
+				<value>org.young.model.AdminInfo</value>
+			</list>
+		</property>
+		<property name="hibernateProperties">
+			<value>
+			hibernate.dialect=org.hibernate.dialect.MySQL5InnoDBDialect
+			hibernate.hbm2ddl.auto=update
+			hibernate.show_sql=true
+			hibernate.format_sql=true
+			hibernate.cache.use_second_level_cache=true
+			hibernate.cache.region.factory_class=org.hibernate.cache.ehcache.EhCacheRegionFactory
+			</value>
+		</property>
+	</bean>
+	
+	<bean id="daoTemplate" abstract="true" lazy-init="true" p:sessionFactory-ref="sessionFactory"/>
+	
+	<!-- 以下是WebSite的beans -->
+	<bean id="loginAction" class="org.young.actions.LoginAction">
+		<property name="service" ref="loginService"></property>
+	</bean>
+	<bean id="loginService" class="org.young.service.LoginServiceImpl">
+		<property name="loginDao" ref="loginDao"/>
+	</bean>
+	<bean id="loginDao" class="org.young.dao.LoginDaoImpl" parent="daoTemplate"/>
+	
+	<bean id="transactionManager" class=
+		"org.springframework.orm.hibernate4.HibernateTransactionManager"
+		p:sessionFactory-ref="sessionFactory"/>	
+	<tx:advice id="txAdvice" transaction-manager="transactionManager">
+		<tx:attributes>
+			<tx:method name="get*" read-only="true"/>
+			<tx:method name="*"/>
+		</tx:attributes>
+	</tx:advice>
+	<aop:config>
+		<aop:pointcut id="Pointcut"
+			expression="bean(loginService)"/>
+		<aop:advisor advice-ref="txAdvice" 
+			pointcut-ref="Pointcut"/>
+	</aop:config>	
+</beans>
